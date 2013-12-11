@@ -33,10 +33,13 @@ bool Effects::setup() {
   }
 
   return true;
-
 }
 
 bool Effects::setupEffects() {
+
+  if(!addEffect(new NoneEffect(booth))) {
+    return false;
+  }
 
   if(!addEffect(new GrayscaleEffect(booth))) {
     return false;
@@ -50,7 +53,23 @@ bool Effects::setupEffects() {
     return false;
   }
 
-  if(!addEffect(new BulgeEffect(booth))) {
+  // Bulge
+  BulgeEffect* be = new BulgeEffect(booth);
+  be->name = EFFECT_BULGE;
+  be->setStrength(1.0f);
+  if(!addEffect(be)) {
+    return false;
+  }
+
+  // Pinch
+  BulgeEffect* pinch = new BulgeEffect(booth);
+  pinch->name = EFFECT_PINCH;
+  pinch->setStrength(-0.66f);
+  if(!addEffect(pinch)) {
+    return false;
+  }
+
+  if(!addEffect(new DotEffect(booth))) {
     return false;
   }
 
@@ -138,8 +157,6 @@ void Effects::draw() {
                     GL_COLOR_BUFFER_BIT, GL_LINEAR);
   
 }
-
-
 
 void Effects::previous() {
   if(index == 0) {

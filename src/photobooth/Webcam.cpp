@@ -27,7 +27,7 @@ Webcam::Webcam(PhotoBooth& booth)
 }
 
 Webcam::~Webcam() {
-  printf("@TODO: Stop capture!.\n");
+  cap.stopCapture();
   uv_mutex_destroy(&yuv_mutex);
 }
 

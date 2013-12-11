@@ -57,6 +57,12 @@ bool Graphics::setup() {
   glLinkProgram(prog_fullscreen_pt);
   eglGetShaderLinkLog(prog_fullscreen_pt);
 
+  // None effect
+  frag_none = rx_create_shader(GL_FRAGMENT_SHADER, NONE_FS);
+  prog_none = rx_create_program(vert_fullscreen_pt, frag_none);
+  glLinkProgram(prog_none);
+  eglGetShaderLinkLog(prog_none);
+
   // Grayscale effect
   frag_grayscale = rx_create_shader(GL_FRAGMENT_SHADER, GRAYSCALE_FS);
   prog_grayscale = rx_create_program(vert_fullscreen_pt, frag_grayscale);
@@ -80,6 +86,13 @@ bool Graphics::setup() {
   prog_bulge = rx_create_program(vert_fullscreen_pt, frag_bulge);
   glLinkProgram(prog_bulge);
   eglGetShaderLinkLog(prog_bulge);
+
+  // Dots effect
+  frag_dots = rx_create_shader(GL_FRAGMENT_SHADER, DOTS_FS);
+  prog_dots = rx_create_program(vert_fullscreen_pt, frag_dots);
+  glLinkProgram(prog_dots);
+  eglGetShaderLinkLog(prog_dots);
+
 
   // Setup VBO + VAO for images
   {

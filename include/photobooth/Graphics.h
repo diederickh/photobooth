@@ -91,6 +91,19 @@ static const char* FULLSCREEN_PT_VS = ""
   "}"
   "";
 
+static const char* NONE_FS = ""
+  "#version 150\n"
+  "uniform sampler2D u_tex; " 
+  "in vec2 v_tex; "
+  "out vec4 fragcolor;"
+  ""
+  "void main() {"
+  "  vec4 tc = texture(u_tex, v_tex);"
+  "  fragcolor.rgb = tc.rgb;"
+  "  fragcolor.a = 1.0; " 
+  "}"
+  "";
+
 static const char* GRAYSCALE_FS = ""
   "#version 150\n"
   "uniform sampler2D u_tex; " 
@@ -99,6 +112,7 @@ static const char* GRAYSCALE_FS = ""
   ""
   "void main() {"
   "  vec4 tc = texture(u_tex, v_tex);"
+
   "  float gray = 0.2126 * tc.r + 0.7152 * tc.g + 0.0722 * tc.b; " 
   //"  float gray = 0.299 * tc.r + 0.587 * tc.g + 0.114 * tc.b; "
   "  fragcolor.rgb = vec3(gray);"
@@ -113,7 +127,9 @@ static const char* SEPIA_FS = ""
   "out vec4 fragcolor;"
   ""
   "void main() {"
+  "  fragcolor.a = 1.0; " 
   "  vec4 tc = texture(u_tex, v_tex);"
+  #if 0
   "  float gray = 0.2126 * tc.r + 0.7152 * tc.g + 0.0722 * tc.b; " 
   "  vec3 sepia = vec3(0.44, 0.26, 0.078); " 
   "  if(gray <= 0.5) { "
@@ -122,7 +138,16 @@ static const char* SEPIA_FS = ""
   "  else { "
   "     fragcolor.rgb = 1.0 - 2.0 * (1.0 - gray) * (vec3(1.0) - sepia); "
   "  }"
-  "  fragcolor.a = 1.0; " 
+  #else 
+  "  float amount = 1.0;"
+  "  float r = tc.r; " 
+  "  float g = tc.g; " 
+  "  float b = tc.b; " 
+  "  tc.r = min(1.0, (r * (1.0 - (0.607 * amount))) + (g * (0.769 * amount)) + (b * (0.189 * amount)));"
+  "  tc.g = min(1.0, (g * 0.349 * amount) + (g * (1.0 - (0.314 * amount))) + (b * 0.168 * amount));"
+  "  tc.b = min(1.0, (r * 0.272 * amount) + (g * 0.534 * amount) + (b * (1.0 - (0.869 * amount))));"
+  "  fragcolor.rgb = tc.rgb;"
+  #endif
   "}"
   "";
 
@@ -145,6 +170,7 @@ static const char* MIRROR_FS = ""
 static const char* BULGE_FS = ""
   "#version 150\n"
   "uniform sampler2D u_tex; " 
+  "uniform float u_strength;"
   "in vec2 v_tex; "
   "out vec4 fragcolor;"
   ""
@@ -159,9 +185,16 @@ static const char* BULGE_FS = ""
   "  float t = v_tex.t;"
   "  if(dist < radius) {"
   "    float p = dist / radius; "
-  "    dir_coord *= mix(1.0, smoothstep(0.0, (radius / dist), p), 1.0 * 0.75);"
-  "    s = dir_coord.s + center_coord.s; " 
-  "    t = dir_coord.t + center_coord.t; " 
+  "    if(u_strength > 0.0) { "
+  "      dir_coord *= mix(1.0, smoothstep(0.0, (radius / dist), p), u_strength * 0.75);"
+  "      s = dir_coord.s + center_coord.s; " 
+  "      t = dir_coord.t + center_coord.t; " 
+  "    } "
+  "    else { "
+  "      dir_coord *= mix(1.0, pow(p, 1.0 + u_strength * 0.75) * radius / dist, 1.0 - p);"
+  "      s = dir_coord.s + center_coord.s; " 
+  "      t = dir_coord.t + center_coord.t; " 
+  "    } "
   "  }"
   "  vec4 tc = texture(u_tex, vec2(s, t)); " 
   "  fragcolor.rgb = tc.rgb; "
@@ -180,6 +213,35 @@ static const char* BULGE_FS = ""
   "  fragcolor.rgb = tc.rgb;"
 #endif
 
+  "";
+
+// thanks to: https://github.com/evanw/glfx.js/blob/master/src/filters/fun/dotscreen.js
+static const char* DOTS_FS = ""
+"#version 150\n"
+  "uniform sampler2D u_tex; " 
+  "in vec2 v_tex; "
+  "out vec4 fragcolor;"
+  ""
+  " float pattern() {"
+  "  float angle = 1.5;"
+  "  float size = 15.4;"
+  "  float s = sin(angle);"
+  "  float c = cos(angle);"
+  "  vec2 win_size = vec2(1280.0, 720.0); " 
+  "  vec2 center = vec2(win_size.x * 0.5, win_size.y * 0.5); "
+  "  vec2 tex = v_tex * win_size - center; "
+  "  vec2 point = vec2("
+  "     c * tex.x - s * tex.y, "
+  "     s * tex.x - c * tex.y  "
+  "     ) * size; "
+  "  return (sin(point.x) * sin(point.y)) * 4.0; "
+  " }"
+  ""
+  " void main() {"
+  "  vec4 tc = texture(u_tex, v_tex);"
+  "  float avg = (tc.r + tc.g + tc.b) / 3.0; " 
+  "  fragcolor = vec4(vec3(avg * 10.0 - 5.0 + pattern()), 1.0);"
+  "}"
   "";
 
 // --------------------------------------------------
@@ -213,6 +275,10 @@ class Graphics {
   GLuint frag_yuv;
   GLuint prog_yuv;
 
+  /* No effect */
+  GLuint frag_none;
+  GLuint prog_none;
+
   /* Grayscale effect */
   GLuint frag_grayscale;
   GLuint prog_grayscale;
@@ -228,6 +294,10 @@ class Graphics {
   /* Bulge effect */
   GLuint frag_bulge;
   GLuint prog_bulge;
+
+  /* Dots */
+  GLuint frag_dots;
+  GLuint prog_dots;
 
   Mat4 ortho_matrix;
 

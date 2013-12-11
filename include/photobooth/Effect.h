@@ -10,6 +10,8 @@ class PhotoBooth;
 #define EFFECT_SEPIA 2
 #define EFFECT_MIRROR 3
 #define EFFECT_BULGE 4
+#define EFFECT_PINCH 5
+#define EFFECT_DOT 6
 
 // ------------------------------------------------
 
@@ -31,6 +33,19 @@ class Effect {
   PhotoBooth& booth;
 
 };
+
+// ------------------------------------------------
+
+class NoneEffect : public Effect {
+ public:
+  NoneEffect(PhotoBooth& booth);
+  ~NoneEffect();
+  bool setup();
+  void update();
+  void apply();
+  void draw();
+};
+
 
 // ------------------------------------------------
 
@@ -78,7 +93,23 @@ class BulgeEffect : public Effect {
   void update();
   void apply();
   void draw();
+  void setStrength(float s);
+ public:
+  float strength;
 };
+
+// ------------------------------------------------
+
+class DotEffect : public Effect {
+ public:
+  DotEffect(PhotoBooth& booth);
+  ~DotEffect();
+  bool setup();
+  void update();
+  void apply();
+  void draw();
+};
+
 
 
 #endif

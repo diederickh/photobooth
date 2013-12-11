@@ -20,17 +20,13 @@ void photobooth_save_thread(void* user) {
         uv_cond_wait(&booth->save_cond, &booth->save_mutex);
       }
       must_save = booth->must_save;
+      must_stop = booth->must_stop;
       booth->must_save = false;
     }
     uv_mutex_unlock(&booth->save_mutex);
 
-    // check if we need to stop?
-    uv_mutex_lock(&booth->stop_mutex);
-      must_stop = booth->must_stop;
-    uv_mutex_unlock(&booth->stop_mutex);
-
     if(must_stop) {
-      break;
+       break;
     }
 
     if(!must_save) { /* handle spurious threads */
@@ -83,17 +79,16 @@ PhotoBooth::PhotoBooth()
   ,must_stop(false)
 {
   uv_mutex_init(&save_mutex);
-  uv_mutex_init(&stop_mutex);
   uv_cond_init(&save_cond);
 }
 
 PhotoBooth::~PhotoBooth() {
 
-  uv_mutex_lock(&stop_mutex);
+  uv_mutex_lock(&save_mutex);
     must_stop = true;
     must_save = true; /* must set to true else the thread won't handle the data */
     uv_cond_signal(&save_cond);
-  uv_mutex_unlock(&stop_mutex);
+  uv_mutex_unlock(&save_mutex);
 
   uv_thread_join(&save_thread);
   
@@ -147,6 +142,11 @@ bool PhotoBooth::setup() {
   saving.setPosition(win_w * 0.5, win_h * 0.5);
   save_no.setPosition(125.0f, 64.0f);
   save_yes.setPosition(300.0f, 64.0f);
+
+  save_no.setSize(128.0f, 128.0f);
+  save_yes.setSize(128.0f, 128.0f);
+  saving.setSize(256.0f, 256.0f);
+
   save_delay = 1000000 * 1000LLU;
 
   counter.setSize(win_w * 0.25, win_w * 0.25);
@@ -172,14 +172,18 @@ void PhotoBooth::update() {
     // when saving go back to the initial state after x-millis
     uint64_t now = uv_hrtime();
     if(now >= save_timeout) {
-      state = BOOTH_STATE_PREVIEW;
-      save_timeout = 0;
-      save_yes.setOff();
-      save_no.setOff();
-      fx.reset();
+      reset();
     }
   }
 
+}
+
+void PhotoBooth::reset() {
+  state = BOOTH_STATE_PREVIEW;
+  save_timeout = 0;
+  save_yes.setOff();
+  save_no.setOff();
+  fx.reset();
 }
 
 void PhotoBooth::draw() {
@@ -239,8 +243,13 @@ void PhotoBooth::onKeyPressed(int key) {
       save_yes.setOn();
     }
     else if(key == GLFW_KEY_SPACE) {
-      savePicture();
-      state = BOOTH_STATE_SAVING;
+      if(save_yes.isOn()) {
+        savePicture();
+        state = BOOTH_STATE_SAVING;
+      }
+      else {
+        reset();
+      }
     }
   }
   

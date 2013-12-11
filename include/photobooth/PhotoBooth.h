@@ -27,6 +27,7 @@ class PhotoBooth {
   bool setup();
   void update();
   void draw();
+  void reset();                    /* reset to default state again */
 
   void takePicture();              /* this will use the current fx.cam_tex_output and draw it statically */
   void savePicture();              /* save the current picture to disc */
@@ -55,7 +56,6 @@ class PhotoBooth {
   uv_thread_t save_thread;
   uv_cond_t save_cond;
   uv_mutex_t save_mutex;
-  uv_mutex_t stop_mutex;
   bool must_save;
   bool must_stop;
   uint64_t save_timeout;          /* when we should switch back to the initial state */
